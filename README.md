@@ -10,7 +10,7 @@ environment: Python 3
 #### main dependencies
 
 - tensorflow- `pip install tensorflow`
-- keras- `pip install keras`: build and train the B-LSTM model
+- keras- `pip install keras`: build and train the Bi-LSTM model
 - librosa- `pip install librosa`: audio resampling
 
 #### dataset
@@ -25,9 +25,9 @@ environment: Python 3
 
 2. `python predict.py`
 
-   Predict emotion from audio. You shoud specify the file path of audio to be predicted. For good performance, the audio should be less than 5 second. You will get the result such as 
+   Predict emotion from audio. You should specify the file path of audio to be predicted. For good performance, the audio should be less than 5 second. You will get the result such as 
 
-   "the top 2 emotion is: ('happiness', 0.20501734)
+   "the top 2 emotion is: ('happiness', 0.20501734)\\
    the top 2 emotion is: ('neutral', 0.29067296)"
 
 ### File structure
