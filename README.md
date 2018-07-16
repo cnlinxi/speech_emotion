@@ -21,14 +21,14 @@ environment: Python 3
 
 1. `python train.py`
 
-Train the model. You can skip this because the trained model named "weights_blstm_hyperas_1.h5" has been uploaded. If you want to retrain the model, you will need to extract features from [berlin](http://emodb.bilderbar.info/download/) dataset when you first run it. For saving time, the audio feature file named "berlin_db.p" and "berlin_features.p" has uploaded.
+   Train the model. You can skip this because the trained model named "weights_blstm_hyperas_1.h5" has been uploaded. If you want to retrain the model, you will need to extract features from [berlin](http://emodb.bilderbar.info/download/) dataset when you first run it. For saving time, the audio feature file named "berlin_db.p" and "berlin_features.p" has uploaded.
 
 2. `python predict.py`
 
-Predict emotion from audio. You shoud specify the file path of audio to be predicted. For good performance, the audio should be less than 5 second. You will get the result such as 
+   Predict emotion from audio. You shoud specify the file path of audio to be predicted. For good performance, the audio should be less than 5 second. You will get the result such as 
 
-"the top 2 emotion is: ('happiness', 0.20501734)
-the top 2 emotion is: ('neutral', 0.29067296)"
+   "the top 2 emotion is: ('happiness', 0.20501734)
+   the top 2 emotion is: ('neutral', 0.29067296)"
 
 ### File structure
 
