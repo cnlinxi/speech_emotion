@@ -36,7 +36,8 @@ environment: Python 3
   - audioFeatureExtraction.py: extract feature from audio. Modify from [pyAudioAnalysis](https://github.com/tyiannak/pyAudioAnalysis)
   - functions.py: some utility about audio.
   - globalvars.py: global variable.
-- berlin_db.p & berlin_features.p: [berlin](http://emodb.bilderbar.info/download/) feature  file.
+- berlin_db.p & berlin_features.p: [berlin](http://emodb.bilderbar.info/download/) feature file.
+- dataset.py: the utility of dataset.
 - predict.py: predict emotion from audio file.
 - train.py: train the model by keras.
 - weights_blstm_hyperas_1.h5: trained model.

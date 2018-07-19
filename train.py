@@ -6,6 +6,10 @@
 # @File    : train.py
 # @Software: PyCharm Community Edition
 
+import sys
+import os
+sys.path.append(os.path.join(os.getcwd(),'utility'))
+
 from utility import functions, globalvars
 import dataset
 

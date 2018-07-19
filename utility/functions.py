@@ -1,10 +1,9 @@
-
 from keras.preprocessing import sequence
 from scipy import stats
 import numpy as np
 from six.moves import cPickle
 from . import audioFeatureExtraction
-import globalvars
+from . import globalvars
 
 def feature_extract(data,datatype,nb_samples, dataset=None, save=True):
     f_global = []
