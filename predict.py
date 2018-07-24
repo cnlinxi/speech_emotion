@@ -4,6 +4,10 @@
 # @FileName: predict.py
 # @Software: PyCharm Community Edition
 
+import sys
+import os
+sys.path.append(os.path.join(os.getcwd(),'utility'))
+
 from keras.models import load_model
 from utility import functions, globalvars
 import librosa
