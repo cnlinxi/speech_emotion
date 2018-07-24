@@ -41,6 +41,20 @@ environment: Python 3
 - train.py: train the model by keras.
 - weights_blstm_hyperas_1.h5: trained model.
 
+### More details
+
+Using attention mechanism and a Bi-LSTM. A "weighted pool" is constructed to process frames that are unrelated to emotion. 
+
+The silent frame is assigned a small weight. The pooling operation effectively filtering them out. Similarly, according to human emotions, non-slient frames have different weights. The attention model focuses not only on speech energy, but also on the emotional content. Attention mechanism is achieved by logistic regression(softmax).
+
+The correct rate on the verification set is **60.87%**. 
+
+![](http://7xrvee.com1.z0.glb.clouddn.com/18-7-23/33215466.jpg)
+
+### Reference
+
+> S. Mirsamadi, E. Barsoum, and C. Zhang, “Automatic speech emotion recognition using recurrent neural networks with local attention,” in 2017 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP), New Orleans, U.S.A., Mar. 2017, IEEE, pp. 2227–2231. 
+
 ### Connect
 
 [cnmengnan@gmail.com](mailto:cnmengnan@gmail.com)
