@@ -4,9 +4,13 @@
 # @FileName: __init__.py
 # @Software: PyCharm
 
-from speech_emotion_transformer.models import hparams
-from speech_emotion_transformer.models.speech_transformer import SpeechTransformer
+from models import hparams
+from models.speech_transformer import SpeechTransformer
+from models.MLP import MLP
 
 
-def create_model(mode='train'):
-    return SpeechTransformer(mode=mode,drop_rate=hparams.transformer_drop_rate)
+def create_model(mode='train',model_type='transformer'):
+    if model_type=='transformer':
+        return SpeechTransformer(mode=mode,drop_rate=hparams.transformer_drop_rate)
+    elif model_type=='mlp':
+        return MLP(mode,hparams.mlp_dropout_rate)

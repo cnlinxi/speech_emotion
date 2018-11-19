@@ -4,6 +4,7 @@
 # @FileName: feeder_transformer.py
 # @Software: PyCharm
 
+import os
 import threading
 import time
 from six.moves import cPickle as pickle
@@ -12,9 +13,9 @@ import tensorflow as tf
 import numpy as np
 from sklearn.model_selection import train_test_split
 
-from speech_emotion_transformer.models import hparams
+from models import hparams
 
-_batches_per_group = 8
+_batches_per_group = 64
 
 
 class Feeder:
@@ -30,23 +31,16 @@ class Feeder:
             lines = fin.readlines()[1:]  # skip header
             self._metadata = [line.decode('utf-8').strip().split(',') for line in lines]
             print('metadata loaded...')
-            # emo_labels=[]
-            # pik_paths=[]
-            # for line in lines:
-            #     meta=line.split(',')
-            #     emo_labels.append(meta[1])
-            #     pik_paths.append(meta[3])
-            # emo_labels=np.asarray(emo_labels)
-            # pik_paths=np.asarray(pik_paths)
 
         test_size = (hparams.test_batch_size if hparams.test_batch_size is not None
-                     else int(hparams.batch_size * hparams.test_batch_size_percent))
+                     else int(len(self._metadata) * hparams.test_batch_size_percent))
         indices = np.arange(len(self._metadata))
         train_indices, test_indices = train_test_split(indices,
                                                        test_size=test_size,
                                                        random_state=2018)
+        # make sure test_indices is a multiple of batch_size else round up
         len_test_indices = self._round_down(len(test_indices), hparams.batch_size)
-        extra_test = test_indices = test_indices[len_test_indices:]
+        extra_test = test_indices[len_test_indices:]
         test_indices = test_indices[:len_test_indices]
         train_indices = np.concatenate([train_indices, extra_test])
         self._train_meta = list(np.array(self._metadata)[train_indices])
@@ -67,7 +61,7 @@ class Feeder:
             # train
             queue = tf.FIFOQueue(
                 capacity=8,
-                dtypes=[tf.float32,tf.int32,tf.int32],
+                dtypes=[tf.float32, tf.int32, tf.int32],
                 name='input_queue'
             )
             self._enqueue_op = queue.enqueue(vals=self._placeholders)
@@ -80,7 +74,7 @@ class Feeder:
             # eval
             eval_queue = tf.FIFOQueue(1, [tf.float32, tf.int32, tf.int32], name='eval_queue')
 
-            self._eval_enqueue_op = queue.enqueue(self._placeholders)
+            self._eval_enqueue_op = eval_queue.enqueue(self._placeholders)
             self.eval_inputs, self.eval_input_lengths, self.eval_labels = eval_queue.dequeue()
 
             self.eval_inputs.set_shape(self._placeholders[0].shape)
@@ -113,7 +107,12 @@ class Feeder:
 
     def _enqueue_next_test_group(self):
         # create test batches once and evaluate on them for all test steps
+        # batches: [batch1, batch2,...], batch1: [example1,example2,...], example1: [(audio1,emo1),(audio2,emo2),...]
         test_batches = self.make_test_batches()
+        os.makedirs(hparams.evel_data_dir,exist_ok=True)
+        with open(os.path.join(hparams.evel_data_dir,'eval_data.pik'),'wb') as fin:
+            pickle.dump(test_batches,fin)
+
         while not self._coord.should_stop():
             for batch in test_batches:
                 feed_dict = dict(zip(self._placeholders, self._prepare_batch(batch)))
@@ -130,9 +129,9 @@ class Feeder:
         self._train_offset += 1
 
         emo_label = meta[1]
-        audio_path = meta[3]
+        audio_path = os.path.join(hparams.raw_audio_root_dir, '{}.wav.pik'.format(meta[0]))
         with open(audio_path, 'rb') as fin:
-            audio_data, sr = pickle.load(fin)
+            audio_data = pickle.load(fin)
         emo_vec = [1 if emo_label == self._labels[i] else 0 for i in range(len(self._labels))]
         return (audio_data, emo_vec)
 
@@ -152,9 +151,9 @@ class Feeder:
         self._test_offset += 1
 
         emo_label = meta[1]
-        audio_path = meta[3]
+        audio_path = os.path.join(hparams.raw_audio_root_dir, '{}.wav.pik'.format(meta[0]))
         with open(audio_path, 'rb') as fin:
-            audio_data, sr = pickle.load(fin)
+            audio_data = pickle.load(fin)
         emo_vec = [1 if emo_label == self._labels[i] else 0 for i in range(len(self._labels))]
         return (audio_data, emo_vec)
 
@@ -174,7 +173,9 @@ class Feeder:
             integral_inputs.append(self._pad_input_to_integral_frame(i))
         integral_inputs = [np.reshape(x, (-1, hparams.frame_size)) for x in
                            integral_inputs]  # [batch_size,n_frame,frame_size]
-        integral_inputs=integral_inputs[:,:hparams.max_n_frame,:]  # reduce too long audio
+        # reduce too long audio
+        integral_inputs = [x[:hparams.max_n_frame, :] if x.shape[0] > hparams.max_n_frame else x
+                           for x in integral_inputs]
         max_len = max([len(x) for x in integral_inputs])
         # pad input to max_frame_length
         return np.stack([self._pad_input_to_max_frame_len(x, max_len) for x in integral_inputs])

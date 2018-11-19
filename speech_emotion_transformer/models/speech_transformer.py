@@ -6,8 +6,8 @@
 
 import tensorflow as tf
 
-from speech_emotion_transformer.models import hparams
-from speech_emotion_transformer.models.transformer_modules import *
+from models import hparams
+from models.transformer_modules import *
 
 
 class SpeechTransformer(object):
@@ -27,7 +27,7 @@ class SpeechTransformer(object):
         training = (self.mode == 'train')
         self.input_x = inputs
         self.input_y = emo_labels
-        max_n_frames=tf.reduce_max(input_lengths)
+        max_n_frames = tf.cast(tf.ceil(tf.reduce_max(input_lengths) / hparams.frame_size), dtype=tf.int32)
 
         with tf.variable_scope('pos_enc'):
             pos_enc = positional_encoding(  # [batch_size,N,max_frame_len]
@@ -36,7 +36,9 @@ class SpeechTransformer(object):
                 zero_pad=False,
                 scale=False
             )
-            self.input_x = self.input_x + pos_enc[:, :max_n_frames, :]
+            # pos_enc=pos_enc[:,:max_n_frames,:]
+            pos_enc = tf.slice(pos_enc, begin=[0, 0, 0], size=[-1, max_n_frames, -1])
+            self.input_x = self.input_x + pos_enc
 
             self.input_x = tf.layers.dropout(
                 inputs=self.input_x,
@@ -59,35 +61,73 @@ class SpeechTransformer(object):
                     inputs=self.input_x,
                     num_units=(4 * hparams.transformer_hidden_units, hparams.transformer_hidden_units)
                 )
-        self.input_x = tf.layers.batch_normalization(self.input_x, training=training)  # [batch_size,N,T]
+        # self.input_x = tf.layers.batch_normalization(self.input_x, training=training)  # [batch_size,N,T]
 
-        with tf.variable_scope('final_reshape'):
-            # [batch_size,N]
-            shp = self.input_x.shape
-            flatten_shape = shp[1].value * shp[2].value
-            self.input_x = tf.reshape(self.input_x, [-1, flatten_shape], name='reshp')
+        # with tf.variable_scope('final_reshape'):
+        # [batch_size,N]
+        # shp = tf.shape(self.input_x)
+        # flatten_shape = shp[1] * shp[2]
+        # self.input_x = tf.reshape(self.input_x, [hparams.batch_size, flatten_shape], name='reshp')
 
-            # x = tf.layers.conv1d(
-            #     inputs=x,
-            #     filters=1,
-            #     strides=1,
-            #     activation=None,
-            #     padding='valid'
-            # )  # [batch_size,N,1]
-            # x = tf.squeeze(x)
+        # x = tf.layers.conv1d(
+        #     inputs=x,
+        #     filters=1,
+        #     strides=1,
+        #     activation=None,
+        #     padding='valid'
+        # )  # [batch_size,N,1]
+        # x = tf.squeeze(x)
+
+        with tf.variable_scope('global_pool'):
+            self.input_x=tf.reduce_max(tf.abs(self.input_x),reduction_indices=[1])
+            self.input_x=tf.reshape(self.input_x,(-1,hparams.frame_size))
+        # with tf.variable_scope('blstm'):
+        #     cell_fw = tf.nn.rnn_cell.BasicLSTMCell(hparams.blstm_cell_num)
+        #     if training:
+        #         cell_fw = tf.contrib.rnn.DropoutWrapper(cell=cell_fw,
+        #                                                 output_keep_prob=1. - hparams.transformer_drop_rate)
+        #     cell_bw = tf.nn.rnn_cell.BasicLSTMCell(hparams.blstm_cell_num)
+        #     if training:
+        #         cell_bw = tf.contrib.rnn.DropoutWrapper(cell=cell_bw,
+        #                                                 output_keep_prob=1. - hparams.transformer_drop_rate)
+        #
+        #     outputs, output_states = tf.nn.bidirectional_dynamic_rnn(cell_fw=cell_fw,
+        #                                                              cell_bw=cell_bw,
+        #                                                              inputs=self.input_x,
+        #                                                              dtype=tf.float32,
+        #                                                              time_major=False,
+        #                                                              scope='blstm_rnn')
+        #     output_states_fw, output_states_bw = output_states
+        #     c_fw, h_fw = output_states_fw
+        #     c_bw, h_bw = output_states_bw
+        #     outputs = tf.concat((h_fw, h_bw), axis=-1)
+        #     self.input_x = tf.reshape(outputs, (-1, 2 * hparams.blstm_cell_num))
+            # outputs=tf.concat(output_states,axis=-1)
+            # self.input_x=tf.reshape(outputs,(-1,4*hparams.blstm_cell_num))
 
         with tf.variable_scope('final_training_op'):
+            # for unit in hparams.final_dense_units:
+            #     self.input_x=tf.layers.dense(self.input_x,units=unit,activation=tf.nn.relu)
+            #     self.input_x=tf.layers.dropout(self.input_x,rate=hparams.transformer_drop_rate)
             self.logits = tf.layers.dense(self.input_x, hparams.n_classes)
 
     def _add_loss(self):
         with tf.variable_scope('loss'):
             all_vars = tf.trainable_variables()
             self.regularization = tf.add_n([tf.nn.l2_loss(v) for v in all_vars
-                                       if not ('bias' in v.name or 'Bias' in v.name)]) * hparams.reg_weight
+                                            if not ('bias' in v.name or 'Bias' in v.name)]) * hparams.reg_weight
             self.cross_entropy = tf.nn.softmax_cross_entropy_with_logits_v2(labels=self.input_y,
-                                                                       logits=self.logits)
+                                                                            logits=self.logits)
 
-            self.loss = self.regularization + self.cross_entropy
+            self.loss = self.regularization+tf.reduce_mean(self.cross_entropy)
+
+    def _add_metric(self):
+        with tf.variable_scope('metrics'):
+            pred = tf.nn.softmax(logits=self.logits)
+            self.pred_ids=tf.argmax(pred, axis=-1)
+            self.ground_truth_ids=tf.argmax(self.input_y, axis=-1)
+            correct_prediction = tf.equal(self.pred_ids,self.ground_truth_ids)
+            self.accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
     def _add_optimizer(self, global_step):
         with tf.variable_scope('optimizer'):

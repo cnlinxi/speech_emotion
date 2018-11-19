@@ -8,7 +8,7 @@ from __future__ import print_function
 import tensorflow as tf
 import numpy as np
 
-from speech_emotion_transformer.models import hparams
+from models import hparams
 
 
 def normalize(inputs,
@@ -162,6 +162,9 @@ def positional_encoding(inputs,
         if scale:
             outputs = outputs * num_units ** 0.5
 
+        if outputs.dtype!=tf.float32:
+            outputs=tf.cast(outputs,tf.float32)
+
         return outputs
 
 
@@ -191,6 +194,7 @@ def multihead_attention(queries,
     Returns
       A 3d tensor with shape of (N, T_q, C)
     '''
+    assert num_units%num_heads==0
     with tf.variable_scope(scope, reuse=reuse):
         # Set the fall back option for num_units
         if num_units is None:
