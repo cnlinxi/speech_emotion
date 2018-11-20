@@ -6,7 +6,7 @@
 import os
 import time
 import traceback
-from _datetime import datetime
+from datetime import datetime
 
 import tensorflow as tf
 from tqdm import tqdm
@@ -63,9 +63,9 @@ def model_train_mode(feeder, global_step):
         model = create_model(mode='train', model_type='mlp')
         model.build_model(feeder.next_element)
         model.add_loss()
+        model.add_metric()
         model.add_optimizer(global_step)
         stats = add_train_stats(model)
-
     return model, stats
 
 
@@ -97,7 +97,7 @@ def train(log_dir):
 
     with tf.Session(config=config) as sess:
         try:
-            feeder = Feeder(data_path=hparams.emo_opensmile_data_path,sess=sess)
+            feeder = Feeder(data_path=hparams.emo_opensmile_data_path, sess=sess)
 
             global_step = tf.Variable(0, name='global_step', trainable=False)
             model, stats = model_train_mode(feeder, global_step)
@@ -109,7 +109,7 @@ def train(log_dir):
             saver = tf.train.Saver(max_to_keep=5)
 
             summary_writer = tf.summary.FileWriter(tensorboard_dir, sess.graph)
-            sess.run(tf.global_variables_initializer())
+            sess.run((tf.global_variables_initializer(),tf.local_variables_initializer()))
             if hparams.restore:
                 try:
                     checkpoint_state = tf.train.get_checkpoint_state(save_dir)
@@ -132,32 +132,36 @@ def train(log_dir):
                 loss_window.append(loss)
                 message = 'Step {:7d} [{:.3f} sec/step, loss={:.5f}, avg_loss={:.5f}]'.format(
                     step, time_window.average, loss, loss_window.average)
-                print(message, end='\r')
+                # print(message, end='\r')
 
-                if loss > 1e100 or np.isnan(loss):
-                    print('loss exploded to {:.5f} at step {}'.format(loss, step))
-                    raise Exception('loss exploded')
+                # if loss > 1e10 or np.isnan(loss):
+                    # print('loss exploded to {:.5f} at step {}'.format(loss, step))
+                    # raise Exception('loss exploded')
                 if step % hparams.summary_interval == 0:
-                    print('\nwrite summary at step {}'.format(step))
+                    # print('\nwrite summary at step {}'.format(step))
                     summary_writer.add_summary(sess.run(stats), step)
                 if step % hparams.eval_interval == 0:
                     print('run evaluation at step {}'.format(step))
                     eval_losses = []
                     eval_accuracys = []
 
-                    for _ in tqdm(range(feeder.eval_num_batch)):
+                    for i in tqdm(range(feeder.eval_num_batch)):
                         ground_truth_ids, pred_ids, loss, accuracy = sess.run(
                             [eval_model.input_y, eval_model.pred_ids, eval_model.loss, eval_model.accuracy])
+
+                        print('grou ids: {}'.format(ground_truth_ids))
+                        print('pred ids: {}'.format(pred_ids))
+                        print('batch-{} acc: {}'.format(i,accuracy))
+
                         eval_losses.append(loss)
                         eval_accuracys.append(accuracy)
 
-                        print('ground truth: {}'.format(ground_truth_ids))
-                        print('pred: {}'.format(pred_ids))
-
                     eval_loss = sum(eval_losses) / len(eval_losses)
                     eval_accuracy = sum(eval_accuracys) / len(eval_accuracys)
+
                     add_eval_stats(summary_writer, step, eval_loss, eval_accuracy)
                     print('\nacc: {}'.format(eval_accuracy))
+
                 if step % hparams.checkpoint_interval == 0 or step == hparams.train_steps \
                         or step == 300:
                     saver.save(sess, checkpoint_path, global_step=global_step)

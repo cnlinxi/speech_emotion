@@ -109,8 +109,8 @@ class Feeder:
         # create test batches once and evaluate on them for all test steps
         # batches: [batch1, batch2,...], batch1: [example1,example2,...], example1: [(audio1,emo1),(audio2,emo2),...]
         test_batches = self.make_test_batches()
-        os.makedirs(hparams.evel_data_dir,exist_ok=True)
-        with open(os.path.join(hparams.evel_data_dir,'eval_data.pik'),'wb') as fin:
+        os.makedirs(hparams.eval_data_dir,exist_ok=True)
+        with open(os.path.join(hparams.eval_data_dir,'eval_data.pik'),'wb') as fin:
             pickle.dump(test_batches,fin)
 
         while not self._coord.should_stop():

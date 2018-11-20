@@ -4,12 +4,29 @@
 # @FileName: feeder_mlp.py
 # @Software: PyCharm
 
+import linecache
+
 import tensorflow as tf
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 import pandas as pd
 
 from models import hparams
+
+
+class CachedLineList:
+    def __init__(self, fname):
+        self._fname = fname
+
+    def __getitem__(self, x):
+        if type(x) is slice:
+            return [linecache.getline(self._fname, n + 1)
+                    for n in range(x.start, x.stop, x.step)]
+        else:
+            return linecache.getline(self._fname, x + 1)
+
+    def __getslice__(self, beg, end):
+        return self[beg:end:1]
 
 
 class Feeder(object):
@@ -47,23 +64,3 @@ class Feeder(object):
             eval_iterator = eval_dataset.make_initializable_iterator()
             sess.run(eval_iterator.initializer, feed_dict=dict(zip(self._placeholder, (X_test, y_test))))
             self.eval_next_element = eval_iterator.get_next()
-        # X_train = tf.convert_to_tensor(X_train, dtype=tf.float32)
-        # y_train = tf.convert_to_tensor(y_train, dtype=tf.int32)
-        #
-        # input_queues = tf.train.slice_input_producer([X_train, y_train])
-        # self.input_x, self.input_y = tf.train.shuffle_batch(input_queues,
-        #                                                     num_threads=2,
-        #                                                     batch_size=hparams.batch_size,
-        #                                                     capacity=hparams.batch_size * 64,
-        #                                                     min_after_dequeue=hparams.batch_size * 32,
-        #                                                     allow_smaller_final_batch=False)
-
-        # X_test = tf.convert_to_tensor(X_test, dtype=tf.float32)
-        # y_test = tf.convert_to_tensor(y_test, dtype=tf.int32)
-        # eval_input_queues = tf.train.slice_input_producer([X_test, y_test])
-        # self.eval_input_x, self.eval_input_y = tf.train.shuffle_batch(eval_input_queues,
-        #                                                               num_threads=2,
-        #                                                               batch_size=hparams.batch_size,
-        #                                                               capacity=hparams.batch_size * 64,
-        #                                                               min_after_dequeue=hparams.batch_size * 32,
-        #                                                               allow_smaller_final_batch=False)
